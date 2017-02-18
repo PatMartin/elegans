@@ -63,7 +63,10 @@ define([],function(){
     };
 
     function generateDiscreteLegend(name, color, chart){
+
         var div = d3.select(document.createElement("div"))
+                .attr("class", "legend-row")
+                .attr("id", "legend-row")
                 .style("padding", "4")
                 .style("height","16")
                 .style("width","100%");
