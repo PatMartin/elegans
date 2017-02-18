@@ -3,9 +3,21 @@ define([
 ],function(Utils){
     function Space(ranges, options){
         this.options = {
-            axis_labels: {x:"X", y:"Y", z:"Z"},
+            axis: {
+                labels: {x:"X", y:"Y", z:"Z"},
+                labelOptions : {
+                    fill: "rgb(255,0,0)",
+                    height: 400,
+                    width: 400,
+                    scale: 8,
+                    font: "60px sans-serif"
+                }
+            },
+            width: 500,
+            height: 500,
             mode: 'wireframe',
-            grid: true
+            grid: true,
+            numTicks: 5
         };
 
         if(arguments.length > 1){
@@ -55,9 +67,12 @@ define([
         var x_scale = d3.scale.linear().domain([ranges.x.max, ranges.x.min]).range([20, 0]);
         var y_scale = d3.scale.linear().domain([ranges.y.max, ranges.y.min]).range([20, 0]);
         var z_scale = d3.scale.linear().domain([ranges.z.max, ranges.z.min]).range([20,0]);
-        this.meshes = this.meshes.concat(generateAxisAndLabels(this.options.axis_labels.x, newV(10,10,-10),newV(-10,10,-10),newV(0,1,0),x_scale));
-        this.meshes = this.meshes.concat(generateAxisAndLabels(this.options.axis_labels.y, newV(-10,-10,-10),newV(-10,10,-10),newV(-1,0,0),y_scale));
-        this.meshes = this.meshes.concat(generateAxisAndLabels(this.options.axis_labels.z, newV(10,10,-10),newV(10,10,10),newV(0,1,0),z_scale));
+        this.meshes = this.meshes.concat(generateAxisAndLabels(this.options, this.options.axis.labels.x,
+            newV( 10,10,-10),
+            newV(-10,10,-10),
+            newV(0,1,0),x_scale));
+        this.meshes = this.meshes.concat(generateAxisAndLabels(this.options, this.options.axis.labels.y, newV(-10,-10,-10),newV(-10,10,-10),newV(-1,0,0),y_scale));
+        this.meshes = this.meshes.concat(generateAxisAndLabels(this.options, this.options.axis.labels.z, newV(10,10,-10),newV(10,10,10),newV(0,1,0),z_scale));
 
         // generate grids
         if(this.options.grid){
@@ -69,15 +84,21 @@ define([
         return this;
     }
 
-    var generateLabel = function(text, position){
+    var generateLabel = function(text, position, labelOptions){
         var canvas = document.createElement('canvas');
-        canvas.width = 100;
-        canvas.height = 100;
+        var options = labelOptions || {};
+        canvas.width = options.height || 100;
+        canvas.height = options.width || 100;
+        var spriteScale = options.scale || 1.5;
+
         var context = canvas.getContext('2d');
-        context.fillStyle = "rgb(0, 0, 0)";
-        context.font = "60px sans-serif";
+        context.fillStyle = options.fill || "rgb(0, 0, 0)";
+        context.font = options.font || "60px sans-serif";
+
         var text_width = context.measureText(text).width;
-        context.fillText(text, (100-text_width)/2, 80);
+        console.log("TEXT-WIDTH: " + text_width + "," + (canvas.width-text_width)/2);
+        context.fillText(text, (canvas.width-text_width)/2, .8 * canvas.height);
+        //context.fillText(text, 0, 80);
         var texture = new THREE.Texture(canvas);
         texture.flipY = true;
         texture.needsUpdate = true;
@@ -87,12 +108,12 @@ define([
             useScreenCoordinates: false
         });
         var sprite = new THREE.Sprite(material);
-        sprite.scale.set(1.5,1.5);
+        sprite.scale.set(spriteScale, spriteScale);
         sprite.position.set.apply(sprite.position, position.toArray());
         return sprite;
     };
 
-    var generateAxisAndLabels = function(axis_label, axis_start, axis_end, nv_tick, scale){
+    var generateAxisAndLabels = function(options, axis_label, axis_start, axis_end, nv_tick, scale){
         var meshes = [];
         var geometry = new THREE.Geometry();
         var nv_start2end = (new THREE.Vector3).subVectors(axis_end, axis_start).normalize();
@@ -102,19 +123,24 @@ define([
         
         var label_position = (new THREE.Vector3).addVectors(axis_end, axis_start).divideScalar(2);
         label_position.add(nv_tick.clone().multiplyScalar(3));
-        meshes.push(generateLabel(axis_label, label_position));
+        console.dir(options);
+        meshes.push(generateLabel(axis_label, label_position,
+            options.axis.labelOptions));
+
+        console.log("OPTIONS");
+        console.dir(options);
 
         // generate d3.js axis
         var svg = d3.select("body")
                 .append("svg")
-                .style("width", "500")
-                .style("height", "500")
+                .style("width", "" + options.width)
+                .style("height", "" + options.height)
                 .style("display", "none");
         var ticks = svg.append("g")
                 .call(d3.svg.axis()
                       .scale(scale)
                       .orient("left")
-                      .ticks(5))
+                      .ticks(options.numTicks))
                 .selectAll(".tick");
 
         // parse svg axis, and generate ticks and labels mimicing svg's.
